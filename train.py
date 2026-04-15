@@ -47,16 +47,6 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
     Assumes `encoder`, `decoder`, and `train_loader` are already constructed and passed in.
     """
 
-                                                                                        
-
-                           
-
-                                                  
-
-    
-
-                                                  
-
     model = UnimodalGenerativeModelWithEBMPrior(
 
         encoder=encoder, 
@@ -66,8 +56,6 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
         latent_dim=latent_dim
 
     ).to(device)
-
-    
 
     sampler = MCMC_Sampler(
 
@@ -85,12 +73,6 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
     )
 
-    
-
-                                                                
-
-                                                           
-
     optimizer_vae = torch.optim.Adam([
 
         {'params': model.encoder.parameters()},
@@ -99,17 +81,7 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
     ], lr=lr)
 
-    
-
-                                                            
-
-                                                                                           
-
     optimizer_ebm = torch.optim.Adam(model.ebm.parameters(), lr=lr)
-
-    
-
-                        
 
     total_batches = len(train_loader)
 
@@ -119,23 +91,11 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
         model.train()
 
-        
-
-                                                                             
-
-        
-
-                                                                                                   
-
         last_mcmc_log_table = None
-
-        
 
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}")
 
         for batch_idx, batch in enumerate(progress_bar):
-
-                                                       
 
             current_beta = get_cyclic_beta(
 
@@ -149,8 +109,6 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
             )
 
-                                               
-
             dec_input_ids = batch[0].to(device)
 
             dec_word_mask = batch[1].to(device)
@@ -158,10 +116,6 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
             enc_input_ids = batch[2].to(device)
 
             enc_word_mask = batch[3].to(device)
-
-            
-
-                                             
 
             step_metrics, mcmc_log_table = train_step_algorithm1(
 
@@ -191,23 +145,13 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
             )
 
-            
-
-                                                                                    
-
             if (batch_idx + 1) % 100 == 0:
 
                 step_metrics["beta"] = current_beta
 
                 wandb.log(step_metrics)
 
-                
-
             last_mcmc_log_table = mcmc_log_table
-
-            
-
-                                           
 
             progress_bar.set_postfix({
 
@@ -217,37 +161,17 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
             })
 
-            
-
-        
-
-        
-
-                          
-
-                                                                    
-
         if last_mcmc_log_table is not None:
 
             table_columns = list(last_mcmc_log_table[0].keys())
 
             wandb_table = wandb.Table(columns=table_columns)
 
-            
-
             for row in last_mcmc_log_table:
-
-                                                                  
 
                 wandb_table.add_data(*[row[col] for col in table_columns])
 
-            
-
-                                                        
-
             wandb.log({f"MCMC_Dynamics_E{epoch+1}": wandb_table})
-
-        
 
     return model
 
@@ -261,19 +185,13 @@ from data.create_loaders import DualTokenizerDataset, make_dual_collate_fn
 
 CHECKPOINT_PATH = "/home/salam4/hvae_project/Optimus/pretrained_checkpoints/optimus-vae.pth" 
 
-    
-
 args = InferenceArgs()
-
-    
 
 try:
 
     model_vae, enc_tok, dec_tok = load_model(CHECKPOINT_PATH, args)
 
     print("Model loaded successfully.")
-
-        
 
 except Exception as e:
 
@@ -283,11 +201,7 @@ except Exception as e:
 
     traceback.print_exc()
 
-    
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    
 
 print("=== GPT-2 decoder tokenizer ===")
 
@@ -296,8 +210,6 @@ print("bos:", dec_tok.bos_token, "id:", dec_tok.bos_token_id)
 print("eos:", dec_tok.eos_token, "id:", dec_tok.eos_token_id)
 
 print("pad:", dec_tok.pad_token, "id:", dec_tok.pad_token_id)
-
-                                   
 
 print("\n=== BERT encoder tokenizer ===")
 
@@ -316,8 +228,6 @@ HP_DICT["vocab_size"] = len(dec_tok)
 df = pd.read_parquet("/home/salam4/hvae_project/Optimus/data/datasets/sentences_df.parquet")
 
 texts = df["sentence"].astype(str).tolist() 
-
-    
 
 dataset = DualTokenizerDataset(texts, enc_tok, dec_tok)
 

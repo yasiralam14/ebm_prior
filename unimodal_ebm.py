@@ -32,8 +32,6 @@ class ResidualBlock(nn.Module):
 
         )
 
-        
-
     def forward(self, x):
 
         return x + self.net(x)
@@ -51,10 +49,6 @@ class FlatEBM(nn.Module):
 
         super().__init__()
 
-        
-
-                                          
-
         layers = [
 
             spectral_norm(nn.Linear(latent_dim, hidden_dim)),
@@ -63,37 +57,17 @@ class FlatEBM(nn.Module):
 
         ]
 
-        
-
-                                                   
-
         for _ in range(num_res_blocks):
 
             layers.append(ResidualBlock(hidden_dim))
 
-            
-
-                                                              
-
-                                                                                            
-
         layers.append(spectral_norm(nn.Linear(hidden_dim, 1)))
-
-        
 
         self.net = nn.Sequential(*layers)
 
-        
-
     def forward(self, z):
 
-                                                                 
-
         return self.net(z)
-
-        
-
-        
 
 class MCMC_Sampler:
 
@@ -115,97 +89,45 @@ class MCMC_Sampler:
 
         self.replay_ratio = replay_ratio
 
-        
-
-                                                          
-
         self.buffer = torch.randn(buffer_size, latent_dim)
 
-        
-
     def sample(self, batch_size, device):
-
-                                                                             
 
         num_fresh = int(batch_size * (1 - self.replay_ratio))
 
         num_replay = batch_size - num_fresh
 
-        
-
-                                             
-
         self.replay_indices = torch.randint(0, self.buffer_size, (num_replay,))
 
         z_replay = self.buffer[self.replay_indices].clone().to(device)
 
-        
-
-                                                                        
-
         z_fresh = torch.randn(num_fresh, self.latent_dim, device=device)
-
-        
-
-                 
 
         z = torch.cat([z_replay, z_fresh], dim=0)
 
         z.requires_grad_(True)
 
-        
-
         z_start = z.detach().clone()
-
-        
-
-                                                 
 
         mcmc_log_table = []
 
         for step in range(self.num_steps):
 
-                                                                         
-
-                                                                              
-
             prior_energy = 0.5 * (z ** 2).sum(dim=-1)
 
             ebm_energy = self.ebm(z).squeeze(-1)
-
-            
-
-                                                                           
-
-                                                                                          
-
-                                                                  
 
             grad_prior = z.clone()
 
             grad_ebm = torch.autograd.grad(ebm_energy.sum(), z)[0]
 
-            
-
-                                       
-
             grad_z = grad_prior + grad_ebm
 
-            
-
-                                
-
             noise = torch.randn_like(z)
-
-            
-
-                                                                                                           
 
             update = -0.5 * self.step_size * grad_z
 
             z.data = z.data + update + math.sqrt(self.step_size) * noise
-
-            
 
             with torch.no_grad():
 
@@ -233,25 +155,13 @@ class MCMC_Sampler:
 
                 })
 
-            
-
-                                                                               
-
         z_final = z.detach()
 
         self.buffer[self.replay_indices] = z_final[:num_replay].cpu()
 
-        
-
-                                                                                  
-
-                                                                                         
-
         fresh_replace_indices = torch.randint(0, self.buffer_size, (num_fresh,))
 
         self.buffer[fresh_replace_indices] = z_final[num_replay:].cpu()
-
-        
 
         return z_final, mcmc_log_table
 
@@ -266,23 +176,11 @@ class UnimodalGenerativeModelWithEBMPrior(nn.Module):
 
         super().__init__()
 
-                                                                                                       
-
         self.encoder = encoder
-
-        
-
-                                                                               
 
         self.decoder = decoder
 
-        
-
-                                
-
         self.ebm = FlatEBM(latent_dim=latent_dim)
-
-        
 
     def reparameterize(self, mu, logvar):
 
@@ -294,11 +192,7 @@ class UnimodalGenerativeModelWithEBMPrior(nn.Module):
 
         return mu + eps * std
 
-        
-
     def forward(self, dec_input_ids, dec_attention_mask, enc_input_ids, enc_attention_mask):
-
-                                                                             
 
         outputs = self.encoder(enc_input_ids, enc_attention_mask)
 
@@ -308,19 +202,11 @@ class UnimodalGenerativeModelWithEBMPrior(nn.Module):
 
         mu, logvar = projection.chunk(2, dim=-1)
 
-        
-
-                                                                               
-
         z_posterior = self.reparameterize(mu, logvar)
 
         prefix_ones = torch.ones((dec_input_ids.shape[0], 1), device=dec_input_ids.device, dtype=dec_input_ids.dtype)
 
         dec_attention_mask = torch.cat([prefix_ones, dec_attention_mask], dim=1)
-
-        
-
-        
 
         out = self.decoder(
 
@@ -334,12 +220,6 @@ class UnimodalGenerativeModelWithEBMPrior(nn.Module):
 
         reconstruction_logits = out[0]
 
-        
-
-                                                                              
-
-        
-
         return reconstruction_logits, mu, logvar, z_posterior
 
 def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_input_ids, enc_attention_mask, model, optimizer_vae, optimizer_ebm, sampler, device, beta=1.0, max_norm=1.0):
@@ -351,21 +231,7 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
 
     model.train()
 
-    
-
-                                                               
-
-                                                                            
-
-                                                               
-
-    
-
     reconstruction_logits, mu, logvar, z_posterior = model(dec_input_ids, dec_attention_mask, enc_input_ids, enc_attention_mask)
-
-    
-
-                                       
 
     reco_loss, token_loss = compute_reconstruction_loss(
 
@@ -377,59 +243,15 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
 
     )
 
-    
-
-                                      
-
-                                                                        
-
-                                                                                   
-
-                                                                                                   
-
-    
-
-                                                              
-
     kl_base = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=-1).mean()
-
-    
-
-                                                                      
-
-                                                                               
-
-                                                                                  
 
     ebm_energy_posterior = model.ebm(z_posterior).squeeze(-1).mean()
 
-    
-
-                         
-
     total_kl = kl_base + ebm_energy_posterior
-
-                                                                          
-
-                                                                  
-
-                                                                              
 
     kl_base_clamped = F.softplus(kl_base - 100.0, beta=1.0)
 
-    
-
-                                                                                 
-
     vae_loss = reco_loss + beta * (kl_base_clamped )+ ebm_energy_posterior
-
-    
-
-                                 
-
-                                                                                       
-
-                                                                                                  
 
     grad_reco_mu, grad_reco_logvar = torch.autograd.grad(reco_loss, [mu, logvar], retain_graph=True)
 
@@ -437,15 +259,11 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
 
     grad_ebm_mu, grad_ebm_logvar = torch.autograd.grad(beta * ebm_energy_posterior, [mu, logvar], retain_graph=True)
 
-    
-
     force_reco = (grad_reco_mu.norm() + grad_reco_logvar.norm()).item()
 
     force_kl = (grad_kl_mu.norm() + grad_kl_logvar.norm()).item()
 
     force_ebm = (grad_ebm_mu.norm() + grad_ebm_logvar.norm()).item()
-
-    
 
     optimizer_vae.zero_grad()
 
@@ -459,59 +277,19 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
 
     optimizer_vae.step()
 
-    
-
-    
-
-                                                               
-
-                                                    
-
-                                                               
-
-    
-
-                                                                             
-
-                                                                             
-
     z_pos = z_posterior.detach()
 
     energy_pos = model.ebm(z_pos).squeeze(-1).mean()
-
-    
-
-                                                                                  
 
     z_neg, mcmc_log_table = sampler.sample(batch_size=dec_input_ids.size(0), device=device)
 
     energy_neg = model.ebm(z_neg).squeeze(-1).mean()
 
-    
-
-                         
-
-                                                                                             
-
-                                                                                                          
-
     ebm_loss = energy_pos - energy_neg
-
-    
-
-                                                             
-
-                                                                                                            
-
-                                                                   
 
     reg_loss = 1e-6 * ((energy_pos ** 2) + (energy_neg ** 2))
 
-    
-
     total_ebm_loss = ebm_loss            
-
-    
 
     optimizer_ebm.zero_grad()
 
@@ -522,8 +300,6 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
         torch.nn.utils.clip_grad_norm_(model.ebm.parameters(), max_norm)
 
     optimizer_ebm.step()
-
-    
 
     metrics = {
 
@@ -548,7 +324,5 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
         "force_ebm": force_ebm,
 
     }
-
-    
 
     return metrics, mcmc_log_table

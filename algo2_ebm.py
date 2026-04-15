@@ -33,14 +33,6 @@ class OptimusDecoderWrapper(nn.Module):
 
     def forward(self, input_ids, attention_mask=None, past=None):
 
-                                                                           
-
-                                                                  
-
-                                                                              
-
-                                                                
-
         if past is not None and attention_mask is not None:
 
             latent_ones = torch.ones(
@@ -67,19 +59,13 @@ class SmallRandomDecoder(nn.Module):
 
         self.vocab_size = vocab_size
 
-        
-
         self.token_emb = nn.Embedding(vocab_size, hidden_dim)
 
         self.pos_emb = nn.Embedding(max_seq_len, hidden_dim)
 
-        
-
         self.latent_proj = nn.Linear(latent_dim, hidden_dim)
 
         self.norm_combine = nn.LayerNorm(hidden_dim)
-
-        
 
         encoder_layer = nn.TransformerEncoderLayer(
 
@@ -97,13 +83,9 @@ class SmallRandomDecoder(nn.Module):
 
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
-        
-
         self.final_norm = nn.LayerNorm(hidden_dim)
 
         self.lm_head = nn.Linear(hidden_dim, vocab_size)
-
-        
 
     def forward(self, input_ids, attention_mask=None, past=None):
 
@@ -111,35 +93,23 @@ class SmallRandomDecoder(nn.Module):
 
         device = input_ids.device
 
-        
-
         tok_embeds = self.token_emb(input_ids)
 
         positions = torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, -1)
 
         pos_embeds = self.pos_emb(positions)
 
-        
-
         x = tok_embeds + pos_embeds
-
-        
 
         if past is not None:
 
             z_proj = self.latent_proj(past)
 
-                                                                                           
-
             x = x + z_proj.unsqueeze(1)
 
             x = self.norm_combine(x)
 
-            
-
         causal_mask = nn.Transformer.generate_square_subsequent_mask(seq_len, device=device)
-
-        
 
         key_padding_mask = None
 
@@ -150,8 +120,6 @@ class SmallRandomDecoder(nn.Module):
                 attention_mask = attention_mask[:, -seq_len:]
 
             key_padding_mask = (attention_mask == 0)
-
-            
 
         h = self.transformer(
 
@@ -168,8 +136,6 @@ class SmallRandomDecoder(nn.Module):
         h = self.final_norm(h)
 
         logits = self.lm_head(h)
-
-        
 
         return (logits,)
 
@@ -200,35 +166,19 @@ def sample_langevin_prior(z, ebm, K_0=60, a_0=0.4):
 
     mcmc_log_table = []
 
-    
-
     for i in range(K_0):
-
-                              
 
         en = ebm(z).squeeze(-1)
 
         z_grad = torch.autograd.grad(en.sum(), z)[0]
 
-        
-
-                                                                              
-
         grad_prior = z.clone()
 
         grad_total = z_grad + grad_prior
 
-        
-
-                               
-
         noise = torch.randn_like(z)
 
         z.data = z.data - 0.5 * a_0 * a_0 * grad_total + a_0 * noise.data
-
-        
-
-                               
 
         with torch.no_grad():
 
@@ -246,8 +196,6 @@ def sample_langevin_prior(z, ebm, K_0=60, a_0=0.4):
 
             })
 
-            
-
     return z.detach(), mcmc_log_table
 
 def sample_langevin_posterior(z, dec_input_ids, target_ids, dec_attention_mask, dec_word_mask, G, E, K_1=40, a_1=0.1, llhd_weight=1.0):
@@ -264,19 +212,11 @@ def sample_langevin_posterior(z, dec_input_ids, target_ids, dec_attention_mask, 
 
     batch_size = z.size(0)
 
-    
-
     for i in range(K_1):
-
-                                
 
         en = E(z).squeeze(-1)
 
         grad_e = torch.autograd.grad(en.sum(), z)[0]
-
-        
-
-                                                         
 
         out = G(
 
@@ -288,45 +228,19 @@ def sample_langevin_posterior(z, dec_input_ids, target_ids, dec_attention_mask, 
 
         )
 
-        
-
-                                                                      
-
         sentence_recon_loss, _ = compute_reconstruction_loss(out[0], target_ids, dec_word_mask)
-
-        
-
-                                                                                   
 
         total_reco_loss_sum = sentence_recon_loss * batch_size 
 
-        
-
         grad_g = torch.autograd.grad(total_reco_loss_sum, z)[0]
-
-        
-
-                                
 
         grad_prior = z.clone()
 
-        
-
-                                  
-
         grad_total = (llhd_weight * grad_g) + grad_e + grad_prior
-
-        
-
-                               
 
         noise = torch.randn_like(z)
 
         z.data = z.data - 0.5 * a_1 * a_1 * grad_total + a_1 * noise.data
-
-        
-
-                                                       
 
         with torch.no_grad():
 
@@ -347,7 +261,5 @@ def sample_langevin_posterior(z, dec_input_ids, target_ids, dec_attention_mask, 
                 "grad_prior_norm": grad_prior.norm(dim=-1).mean().item()
 
             })
-
-            
 
     return z.detach(), mcmc_log_table

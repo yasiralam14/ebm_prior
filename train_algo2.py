@@ -22,27 +22,17 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
     Implements the core training loops for the non-amortized Generator + EBM.
     """
 
-                                                          
-
     K_0, a_0, K_1, a_1 = 60, 0.4, 40, 0.1
 
     llhd_sigma = 0.3
-
-                                                        
 
     llhd_weight = 1.0 / (2.0 * llhd_sigma * llhd_sigma)
 
     model = DecoderOnlyModelWithEBMPrior(decoder=decoder, latent_dim=latent_dim).to(device)
 
-    
-
-                                                                                
-
     optG = torch.optim.Adam(model.decoder.parameters(), lr=lr_g, betas=(0.5, 0.999))
 
     optE = torch.optim.Adam(model.ebm.parameters(), lr=lr_e, betas=(0.5, 0.999))
-
-    
 
     for epoch in range(epochs):
 
@@ -50,13 +40,9 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
 
         model.train()
 
-        
-
         last_mcmc_prior_table = None
 
         last_mcmc_post_table = None
-
-        
 
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}")
 
@@ -66,41 +52,17 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
 
             dec_word_mask = batch[1].to(device)
 
-            
-
             batch_size = dec_input_ids.size(0)
-
-            
-
-                                                                     
-
-                                                   
-
-                                                                     
 
             z_e_0 = torch.randn(batch_size, latent_dim, device=device)
 
             z_g_0 = torch.randn(batch_size, latent_dim, device=device)
-
-            
-
-                                                                     
-
-                                    
-
-                                                                     
-
-                          
 
             z_e_k, prior_table = sample_langevin_prior(
 
                 z_e_0, model.ebm, K_0=K_0, a_0=a_0
 
             )
-
-            
-
-                              
 
             z_g_k, post_table = sample_langevin_posterior(
 
@@ -110,19 +72,9 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
 
             )
 
-            
-
             last_mcmc_prior_table = prior_table
 
             last_mcmc_post_table = post_table
-
-            
-
-                                                                     
-
-                                                        
-
-                                                                     
 
             optG.zero_grad()
 
@@ -142,14 +94,6 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
 
             optG.step()
 
-            
-
-                                                                     
-
-                                                      
-
-                                                                     
-
             optE.zero_grad()
 
             en_pos = model.ebm(z_g_k.detach()).mean()
@@ -161,10 +105,6 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
             loss_e.backward()
 
             optE.step()
-
-            
-
-                              
 
             if (batch_idx + 1) % 50 == 0:
 
@@ -182,8 +122,6 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
 
                 })
 
-                
-
             progress_bar.set_postfix({
 
                 "L_G": f"{loss_g.item():.2f}",
@@ -192,21 +130,11 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
 
             })
 
-            
-
-                                                                 
-
-                                    
-
-                                                                 
-
         if last_mcmc_prior_table is not None:
 
             df_prior = pd.DataFrame(last_mcmc_prior_table)
 
             df_post = pd.DataFrame(last_mcmc_post_table)
-
-            
 
             wandb.log({
 
@@ -217,8 +145,6 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
             })
 
     return model
-
-                                                                                
 
 inference_dir = "/home/salam4/hvae_project/Optimus"
 
@@ -234,25 +160,17 @@ if __name__ == "__main__":
 
     args = InferenceArgs()
 
-    
-
     print("\nLoading Model Checkpoints...")
 
     model_vae, enc_tok, dec_tok = load_model(CHECKPOINT_PATH, args)
 
-    
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    
 
     print("Loading Dataset...")
 
     df = pd.read_parquet("/home/salam4/hvae_project/Optimus/data/datasets/sentences_df.parquet")
 
     texts = df["sentence"].astype(str).tolist() 
-
-    
 
     dataset = DualTokenizerDataset(texts, enc_tok, dec_tok)
 
@@ -262,8 +180,6 @@ if __name__ == "__main__":
 
     train_loader = DataLoader(train_df, batch_size=64, shuffle=True, collate_fn=collate_fn)
 
-    
-
     wandb.init(
 
         project="Energy based prior model",
@@ -272,15 +188,9 @@ if __name__ == "__main__":
 
     )   
 
-    
-
     print("\nStarting Decoder-Only EBM Training...")
 
-    
-
     optimus_decoder = OptimusDecoderWrapper(model_vae.decoder).to(device)
-
-    
 
     model = train_unimodal_ebm_algo2(
 
