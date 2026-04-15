@@ -75,14 +75,18 @@ ebm_prior/
 The model alternates between two update phases per batch:
 
 **Phase 1 — Update VAE (Encoder + Decoder)**
-$$\mathcal{L}_\text{VAE} = \mathcal{L}_\text{recon} + \beta \cdot \text{KL}_\text{clamp}(q_\phi \| p_0) + \mathbb{E}_{q_\phi}[E_\theta(z)]$$
+$$
+\mathcal{L}_\text{VAE} = \mathcal{L}_\text{recon} + \beta \cdot \text{KL}_\text{clamp}(q_\phi \| p_0) + \mathbb{E}_{q_\phi}[E_\theta(z)]
+$$
 
 - Reconstruction loss: masked cross-entropy (per-sentence sum, batch mean)
 - KL divergence uses **Free Bits** (softplus hinge at margin=100) to prevent posterior collapse
 - EBM energy term is unclamped to let the EBM guide the encoder freely
 
 **Phase 2 — Update EBM via Contrastive Divergence**
-$$\mathcal{L}_\text{CD} = \mathbb{E}_{q_\phi(z|x)}[E_\theta(z)] - \mathbb{E}_{p_\theta(z)}[E_\theta(z)]$$
+$$
+\mathcal{L}_\text{CD} = \mathbb{E}_{q_\phi(z|x)}[E_\theta(z)] - \mathbb{E}_{p_\theta(z)}[E_\theta(z)]
+$$
 
 - Positive samples: latent codes from the encoder posterior $z \sim q_\phi(z|x)$
 - Negative samples: chains run from a **replay buffer** (95% buffer / 5% fresh noise) via ULA
