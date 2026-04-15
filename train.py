@@ -14,8 +14,6 @@ from sklearn.model_selection import train_test_split
 
 from unimodal_ebm import UnimodalGenerativeModelWithEBMPrior, MCMC_Sampler, train_step_algorithm1
 
-
-
 def get_cyclic_beta(batch_idx, total_batches, start_beta=0.005, max_beta=1.0):
 
     """
@@ -41,8 +39,6 @@ def get_cyclic_beta(batch_idx, total_batches, start_beta=0.005, max_beta=1.0):
     else:
 
         return max_beta
-
-
 
 def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768, lr=3e-4, beta=1.0, max_norm=1.0, device='cuda'):
 
@@ -153,8 +149,6 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
             )
 
-
-
                                                
 
             dec_input_ids = batch[0].to(device)
@@ -257,23 +251,13 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
 
     return model
 
-
-
-
-
 inference_dir = "/home/salam4/hvae_project/Optimus"
 
 sys.path.insert(0, inference_dir)
 
-
-
 from pretrained_checkpoints.inference import load_model, InferenceArgs
 
 from data.create_loaders import DualTokenizerDataset, make_dual_collate_fn
-
-
-
-
 
 CHECKPOINT_PATH = "/home/salam4/hvae_project/Optimus/pretrained_checkpoints/optimus-vae.pth" 
 
@@ -301,11 +285,7 @@ except Exception as e:
 
     
 
-
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
 
     
 
@@ -317,8 +297,6 @@ print("eos:", dec_tok.eos_token, "id:", dec_tok.eos_token_id)
 
 print("pad:", dec_tok.pad_token, "id:", dec_tok.pad_token_id)
 
-
-
                                    
 
 print("\n=== BERT encoder tokenizer ===")
@@ -329,23 +307,15 @@ print("sep:", enc_tok.sep_token, "id:", enc_tok.sep_token_id)
 
 print("pad:", enc_tok.pad_token, "id:", enc_tok.pad_token_id)
 
-
-
 HP_DICT = {}
 
 HP_DICT["pad_idx"] = dec_tok.pad_token_id
 
 HP_DICT["vocab_size"] = len(dec_tok)
 
-
-
-
-
 df = pd.read_parquet("/home/salam4/hvae_project/Optimus/data/datasets/sentences_df.parquet")
 
 texts = df["sentence"].astype(str).tolist() 
-
-
 
     
 
@@ -359,27 +329,15 @@ train_loader = DataLoader(train_df, batch_size=128, shuffle=True, collate_fn=col
 
 valid_loader = DataLoader(valid_df, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
-
-
-
-
-
-
 dec_ids, dec_mask, enc_ids, enc_mask = next(iter(train_loader))
 
 print(dec_ids.shape, dec_mask.shape, enc_ids.shape, enc_mask.shape)               
 
 print("dec pad id:", dec_tok.pad_token_id, "enc pad id:", enc_tok.pad_token_id)
 
-
-
-
-
 import os
 
 wandb.login(key=os.environ.get("WANDB_API_KEY"))                                         
-
-
 
 wandb.init(
 
@@ -388,8 +346,6 @@ wandb.init(
     name = 'reply buffer, cycling annealing, 10x faster ebm'
 
 )   
-
-
 
 print("\nStarting Unimodal EBM Training...")
 

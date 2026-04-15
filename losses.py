@@ -2,8 +2,6 @@ import torch
 
 import torch.nn.functional as F
 
-
-
 def compute_reconstruction_loss(logits, targets, attention_mask):
 
     """
@@ -104,4 +102,3 @@ def compute_reconstruction_loss(logits, targets, attention_mask):
     
 
     return sentence_recon_loss, token_loss_per_token
-

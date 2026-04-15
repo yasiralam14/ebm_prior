@@ -8,10 +8,6 @@ from unimodal_ebm import FlatEBM
 
 from losses import compute_reconstruction_loss
 
-
-
-
-
 class OptimusDecoderWrapper(nn.Module):
 
     """
@@ -29,15 +25,11 @@ class OptimusDecoderWrapper(nn.Module):
     seq_len + 1 positions and broadcasts correctly.
     """
 
-
-
     def __init__(self, optimus_decoder):
 
         super().__init__()
 
         self.decoder = optimus_decoder
-
-
 
     def forward(self, input_ids, attention_mask=None, past=None):
 
@@ -63,11 +55,7 @@ class OptimusDecoderWrapper(nn.Module):
 
             attention_mask = torch.cat([latent_ones, attention_mask], dim=1)
 
-
-
         return self.decoder(input_ids, past=past, attention_mask=attention_mask)
-
-
 
 class SmallRandomDecoder(nn.Module):
 
@@ -185,8 +173,6 @@ class SmallRandomDecoder(nn.Module):
 
         return (logits,)
 
-
-
 class DecoderOnlyModelWithEBMPrior(nn.Module):
 
     """
@@ -201,10 +187,6 @@ class DecoderOnlyModelWithEBMPrior(nn.Module):
         self.decoder = decoder
 
         self.ebm = FlatEBM(latent_dim=latent_dim)
-
-
-
-
 
 def sample_langevin_prior(z, ebm, K_0=60, a_0=0.4):
 
@@ -267,10 +249,6 @@ def sample_langevin_prior(z, ebm, K_0=60, a_0=0.4):
             
 
     return z.detach(), mcmc_log_table
-
-
-
-
 
 def sample_langevin_posterior(z, dec_input_ids, target_ids, dec_attention_mask, dec_word_mask, G, E, K_1=40, a_1=0.1, llhd_weight=1.0):
 
@@ -373,4 +351,3 @@ def sample_langevin_posterior(z, dec_input_ids, target_ids, dec_attention_mask, 
             
 
     return z.detach(), mcmc_log_table
-

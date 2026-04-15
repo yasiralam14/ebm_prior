@@ -10,8 +10,6 @@ from losses import compute_reconstruction_loss
 
 import torch.nn.functional as F
 
-
-
 class ResidualBlock(nn.Module):
 
     """
@@ -39,10 +37,6 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
 
         return x + self.net(x)
-
-
-
-
 
 class FlatEBM(nn.Module):
 
@@ -261,10 +255,6 @@ class MCMC_Sampler:
 
         return z_final, mcmc_log_table
 
-
-
-
-
 class UnimodalGenerativeModelWithEBMPrior(nn.Module):
 
     """
@@ -324,11 +314,7 @@ class UnimodalGenerativeModelWithEBMPrior(nn.Module):
 
         z_posterior = self.reparameterize(mu, logvar)
 
-
-
         prefix_ones = torch.ones((dec_input_ids.shape[0], 1), device=dec_input_ids.device, dtype=dec_input_ids.dtype)
-
-
 
         dec_attention_mask = torch.cat([prefix_ones, dec_attention_mask], dim=1)
 
@@ -355,10 +341,6 @@ class UnimodalGenerativeModelWithEBMPrior(nn.Module):
         
 
         return reconstruction_logits, mu, logvar, z_posterior
-
-
-
-
 
 def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_input_ids, enc_attention_mask, model, optimizer_vae, optimizer_ebm, sampler, device, beta=1.0, max_norm=1.0):
 
@@ -426,8 +408,6 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
                          
 
     total_kl = kl_base + ebm_energy_posterior
-
-
 
                                                                           
 
@@ -572,4 +552,3 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
     
 
     return metrics, mcmc_log_table
-

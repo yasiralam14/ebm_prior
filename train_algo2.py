@@ -12,13 +12,9 @@ from torch.utils.data import DataLoader
 
 from sklearn.model_selection import train_test_split
 
-
-
 from losses import compute_reconstruction_loss
 
 from algo2_ebm import DecoderOnlyModelWithEBMPrior, sample_langevin_prior, sample_langevin_posterior, SmallRandomDecoder, OptimusDecoderWrapper
-
-
 
 def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, lr_e=0.00002, lr_g=0.0001, device='cuda'):
 
@@ -35,8 +31,6 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
                                                         
 
     llhd_weight = 1.0 / (2.0 * llhd_sigma * llhd_sigma)
-
-
 
     model = DecoderOnlyModelWithEBMPrior(decoder=decoder, latent_dim=latent_dim).to(device)
 
@@ -222,13 +216,7 @@ def train_unimodal_ebm_algo2(decoder, train_loader, epochs=10, latent_dim=768, l
 
             })
 
-
-
     return model
-
-
-
-
 
                                                                                 
 
@@ -236,13 +224,9 @@ inference_dir = "/home/salam4/hvae_project/Optimus"
 
 sys.path.insert(0, inference_dir)
 
-
-
 from pretrained_checkpoints.inference import load_model, InferenceArgs
 
 from data.create_loaders import DualTokenizerDataset, make_dual_collate_fn
-
-
 
 if __name__ == "__main__":
 
@@ -319,4 +303,3 @@ if __name__ == "__main__":
     print("Training complete!")
 
     wandb.finish()
-
