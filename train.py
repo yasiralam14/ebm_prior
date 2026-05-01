@@ -35,16 +35,16 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
     sampler = MCMC_Sampler(
         ebm=model.ebm, 
         latent_dim=latent_dim, 
-        step_size=0.01, 
+        step_size=0.1, 
         num_steps=50,
         buffer_size=10000,
-        replay_ratio=0.95
+        replay_ratio=0
     )
     optimizer_vae = torch.optim.Adam([
-        {'params': model.encoder.parameters()},
-        {'params': model.decoder.parameters()}
+        {'params': model.encoder.parameters(),'lr': 1e-4},
+        {'params': model.decoder.parameters(),'lr': 2e-5}
     ], lr=lr)
-    optimizer_ebm = torch.optim.Adam(model.ebm.parameters(), lr=lr)
+    optimizer_ebm = torch.optim.Adam(model.ebm.parameters(), lr=1e-4*0.005)
     total_batches = len(train_loader)
     for epoch in range(epochs):
         print(f"\n--- Epoch {epoch+1}/{epochs} ---")
@@ -73,11 +73,11 @@ def train_unimodal_ebm(encoder, decoder, train_loader, epochs=10, latent_dim=768
                 optimizer_ebm=optimizer_ebm, 
                 sampler=sampler, 
                 device=device,
-                beta=current_beta,
+                beta=1,
                 max_norm=max_norm
             )
             if (batch_idx + 1) % 100 == 0:
-                step_metrics["beta"] = current_beta
+                step_metrics["beta"] = 1
                 wandb.log(step_metrics)
             last_mcmc_log_table = mcmc_log_table
             progress_bar.set_postfix({
@@ -130,14 +130,14 @@ import os
 wandb.login(key=os.environ.get("WANDB_API_KEY"))                                         
 wandb.init(
     project="EBM Prior",
-    name = 'reply buffer, cycling annealing, 10x faster ebm'
+    name = 'no reply buffer, 200x slower, 0.1 step size, 20x reco loss'
 )   
 print("\nStarting Unimodal EBM Training...")
 model = train_unimodal_ebm(
     encoder=model_vae.encoder, 
     decoder=model_vae.decoder, 
     train_loader=train_loader, 
-    epochs=2, 
+    epochs=3, 
     latent_dim=768, 
     lr=3e-5, 
     beta=1.0, 

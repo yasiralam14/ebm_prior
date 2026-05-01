@@ -128,14 +128,17 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
         targets=target_ids,
         attention_mask=dec_attention_mask
     )
-    kl_base = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=-1).mean()
+    kl_per_dim = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
+    kl_base = kl_per_dim.mean()
+    free_bits = 0.0
+    free_nats_kl_per_dim = torch.clamp(kl_per_dim, min=free_bits)
+    kl_loss_term = free_nats_kl_per_dim.sum(dim=-1).mean()
     ebm_energy_posterior = model.ebm(z_posterior).squeeze(-1).mean()
     total_kl = kl_base + ebm_energy_posterior
-    kl_base_clamped = F.softplus(kl_base - 100.0, beta=1.0)
-    vae_loss = reco_loss + beta * (kl_base_clamped )+ ebm_energy_posterior
-    grad_reco_mu, grad_reco_logvar = torch.autograd.grad(reco_loss, [mu, logvar], retain_graph=True)
-    grad_kl_mu, grad_kl_logvar = torch.autograd.grad(beta * kl_base_clamped, [mu, logvar], retain_graph=True)
-    grad_ebm_mu, grad_ebm_logvar = torch.autograd.grad(beta * ebm_energy_posterior, [mu, logvar], retain_graph=True)
+    vae_loss = 20*reco_loss + 1.0 * kl_loss_term + ebm_energy_posterior
+    grad_reco_mu, grad_reco_logvar = torch.autograd.grad(20*reco_loss, [mu, logvar], retain_graph=True)
+    grad_kl_mu, grad_kl_logvar = torch.autograd.grad(1.0 * kl_loss_term, [mu, logvar], retain_graph=True)
+    grad_ebm_mu, grad_ebm_logvar = torch.autograd.grad(ebm_energy_posterior, [mu, logvar], retain_graph=True)
     force_reco = (grad_reco_mu.norm() + grad_reco_logvar.norm()).item()
     force_kl = (grad_kl_mu.norm() + grad_kl_logvar.norm()).item()
     force_ebm = (grad_ebm_mu.norm() + grad_ebm_logvar.norm()).item()
@@ -157,6 +160,11 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
     if max_norm is not None:
         torch.nn.utils.clip_grad_norm_(model.ebm.parameters(), max_norm)
     optimizer_ebm.step()
+    with torch.no_grad():
+        sigma_posterior = torch.exp(0.5 * logvar)  # (batch, latent_dim)
+        mu_mean = mu.abs().mean().item()
+        sigma_mean = sigma_posterior.mean().item()
+        z_post_distance = z_posterior.norm(dim=-1).mean().item()  # mean L2 norm across batch
     metrics = {
         "vae_loss": vae_loss.item(),
         "CD_loss": ebm_loss.item(),
@@ -168,5 +176,8 @@ def train_step_algorithm1(dec_input_ids, target_ids, dec_attention_mask, enc_inp
         "force_reco": force_reco,
         "force_kl": force_kl,
         "force_ebm": force_ebm,
+        "posterior/mu_abs_mean": mu_mean,
+        "posterior/sigma_mean": sigma_mean,
+        "posterior/z_distance_from_origin": z_post_distance,
     }
     return metrics, mcmc_log_table
