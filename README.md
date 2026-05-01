@@ -56,7 +56,7 @@ ebm_prior/
 │
 ├── train.py              # Training script for Algorithm 1 (full VAE + EBM)
 │                         #   Uses Optimus encoder + decoder, WandB logging,
-│                         #   cyclic beta annealing, and MCMC replay buffer
+│                         #   recon loss multiplier, and MCMC replay buffer
 │
 ├── train_algo2.py        # Training script for Algorithm 2 (decoder-only)
 │                         #   Uses Optimus decoder or SmallRandomDecoder
@@ -77,11 +77,11 @@ The model alternates between two update phases per batch:
 **Phase 1 — Update VAE (Encoder + Decoder)**
 
 $$
-\mathcal{L}_{\text{VAE}} = \mathcal{L}_{\text{recon}} + \beta \cdot \text{KL}_{\text{clamp}}(q_\phi \parallel p_0) + \mathbb{E}_{q_\phi}[E_\theta(z)]
+\mathcal{L}_{\text{VAE}} = \lambda \cdot \mathcal{L}_{\text{recon}} + \beta \cdot \text{KL}(q_\phi \parallel p_0) + \mathbb{E}_{q_\phi}[E_\theta(z)]
 $$
 
-- Reconstruction loss: masked cross-entropy (per-sentence sum, batch mean)
-- KL divergence uses **Free Bits** (softplus hinge at margin=100) to prevent posterior collapse
+- Reconstruction loss: masked cross-entropy (per-sentence sum, batch mean) scaled by a multiplier
+- Latent regularization: KL divergence is computed without free bits. We actively monitor the variance, mean, and norm of the latents to ensure they do not escape the normal unit ball in 768 dimensions.
 - EBM energy term is unclamped to let the EBM guide the encoder freely
 
 **Phase 2 — Update EBM via Contrastive Divergence**
@@ -152,8 +152,8 @@ Fixes an **attention mask size mismatch** when injecting a latent vector as KV m
 | MCMC step size (prior) | 0.01 | 0.4 |
 | MCMC steps (posterior) | — | 40 |
 | MCMC step size (posterior) | — | 0.1 |
-| KL free bits margin | 100 | N/A |
-| β annealing | Cyclic (0.005 → 1.0) | Fixed |
+| Recon loss multiplier | Active | N/A |
+| β annealing | Fixed | Fixed |
 | Replay buffer | ✅ 10k, 95% ratio | ❌ |
 | Gradient clipping | 1.0 (max norm) | N/A |
 | Optimizer | Adam (β=0.5, 0.999) | Adam (β=0.5, 0.999) |
@@ -206,7 +206,8 @@ Training is logged to **Weights & Biases**. Key tracked metrics:
 - `token_loss` — per-token cross-entropy (for perplexity reference)
 - `loss_e (CD)` — contrastive divergence loss
 - `en_pos / en_neg` — mean EBM energy of positive/negative samples
-- `kl_base` — raw KL divergence (before free-bits clamping)
+- `kl_base` — raw KL divergence
+- `latent_mean`, `latent_var`, `latent_norm` — monitored to ensure latents stay within the 768D normal ball
 - `force_reco / force_kl / force_ebm` — gradient norms at the encoder bottleneck
 - `MCMC_Dynamics_E{n}` — per-step MCMC table (energy, grad norms, chain displacement)
 
