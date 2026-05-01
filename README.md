@@ -56,7 +56,7 @@ ebm_prior/
 │
 ├── train.py              # Training script for Algorithm 1 (full VAE + EBM)
 │                         #   Uses Optimus encoder + decoder, WandB logging,
-│                         #   recon loss multiplier, and MCMC replay buffer
+│                         #   and recon loss multiplier
 │
 ├── train_algo2.py        # Training script for Algorithm 2 (decoder-only)
 │                         #   Uses Optimus decoder or SmallRandomDecoder
@@ -91,7 +91,7 @@ $$
 $$
 
 - Positive samples: latent codes from the encoder posterior $z \sim q_\phi(z|x)$
-- Negative samples: chains run from a **replay buffer** (95% buffer / 5% fresh noise) via ULA
+- Negative samples: chains run from fresh noise via ULA (no replay buffer needed since the energy surface is restricted to the normal ball)
 
 ### Algorithm 2 — Decoder-Only (No Amortized Encoder)
 
@@ -117,13 +117,11 @@ A deep MLP that maps a latent vector $z \in \mathbb{R}^{768}$ to a scalar energy
 
 ### `MCMC_Sampler` (`unimodal_ebm.py`)
 
-Implements **Unadjusted Langevin Algorithm (ULA)** with a persistent replay buffer:
+Implements **Unadjusted Langevin Algorithm (ULA)** (without a replay buffer, as the energy surface is restricted to the normal ball):
 
 $$
 z_{t+1} = z_t - \frac{\alpha^2}{2}\left(\nabla_z E_\theta(z_t) + z_t\right) + \alpha \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)
 $$
-
-- Buffer stored on **CPU** to conserve VRAM
 - Logs per-step diagnostics: total energy, EBM energy, prior energy, gradient norms, distance from chain start
 
 ### `SmallRandomDecoder` (`algo2_ebm.py`)
@@ -154,7 +152,7 @@ Fixes an **attention mask size mismatch** when injecting a latent vector as KV m
 | MCMC step size (posterior) | — | 0.1 |
 | Recon loss multiplier | Active | N/A |
 | β annealing | Fixed | Fixed |
-| Replay buffer | ✅ 10k, 95% ratio | ❌ |
+| Replay buffer | ❌ | ❌ |
 | Gradient clipping | 1.0 (max norm) | N/A |
 | Optimizer | Adam (β=0.5, 0.999) | Adam (β=0.5, 0.999) |
 
